@@ -15,11 +15,16 @@ commit plus an AI_LOG entry after each step.
 | Same contact, several slots in one day | **Allowed**; the only rule is one appointment per slot |
 | Layout | **One page, two tabs**: "Book Appointment" and "Staff" |
 
+**Plan review changes (Rafael, 2026-09-24):**
+1. Added **Step 7.5 — Refactor** (suite before → one no-behavior-change refactor → suite after).
+2. Step 3 adds a `RequestValidationError` handler so every 422 returns `{"detail": "<friendly message>"}` from the validation table, never raw Pydantic text.
+3. **Open slots redefined** (overrides the CLAUDE.md default "7 − appointments"): a slot is open only if it is **unbooked AND still bookable**. It must not have passed today, every slot on a Sunday is closed (0 open), and a past date has 0 open. The summary reuses `slot_has_passed` and the Sunday rule, so the summary and `/api/slots` always agree.
+
 **Defaults I picked (minor):** "today" and "now" use Philippine time, a fixed UTC+8 with no DST.
 I used a fixed offset because `zoneinfo` on Windows would need the extra `tzdata` package.
 Names are trimmed before checking their length. The contact number must be exactly 11 digits;
 spaces and dashes are rejected rather than stripped, so what's stored is what was validated.
-A No-show still occupies its slot, per CLAUDE.md: open = 7 − appointments that day.
+A No-show still occupies its slot (it is booked, so it is never "open").
 
 ---
 
@@ -47,7 +52,7 @@ check-ups online without double booking and lets staff manage and summarize dail
 |---|---|---|---|---|
 | F1 | **Book Appointment** (resident tab) | Name, contact no., service, date, time slot | Pydantic checks the format (name length, `09`+9 digits, service/slot from the fixed lists). The booking service checks the date rules (not past, not Sunday, slot not already passed today). The DB unique constraint on (date, slot) blocks double booking | 201 + confirmation card, or a friendly error (400/409/422). The slot picker shows taken slots as disabled |
 | F2 | **Manage Appointments** (staff tab) | Selected date; a "Completed"/"No-show" button click | Fetch that date's appointments sorted by slot; PATCH the status, allowed only from Booked | Table of appointments with status badges; the buttons disappear once the status is final. 404 if the ID is unknown, 400 for an invalid transition |
-| F3 | **Daily Summary** (staff tab) | Selected date | Count all appointments that date, group them by the 4 services, open = 7 − total | Cards: Total, one per service (zeros shown), Open slots |
+| F3 | **Daily Summary** (staff tab) | Selected date | Count all appointments that date and group them by the 4 services. Open slots = slots that are unbooked **and** still bookable: not passed today, 0 on Sundays and past dates | Cards: Total, one per service (zeros shown), Open slots |
 
 ## 4. Data model (SQLite, one table)
 **`appointments`**
@@ -85,6 +90,11 @@ add joins without adding anything we need (YAGNI).
 | Appointment id | must exist | router | 404 | "Appointment not found." |
 | Query `date` (staff/summary/slots) | valid date | FastAPI query type | 422 | "Please choose a valid date." |
 
+**How the messages reach the UI:** every error body has one shape, `{"detail": "<message>"}`.
+400/404/409 come from `HTTPException`. A custom `RequestValidationError` handler converts
+422s: it looks up the first failing field and returns that field's friendly message from this
+table, so the UI never shows raw Pydantic text.
+
 The UI repeats the simple checks (required fields, contact pattern, `min=today` on the date
 picker) so users get feedback instantly. The server remains the authority. All user text is
 rendered with `textContent`.
@@ -103,11 +113,11 @@ Tests use pytest + TestClient on in-memory SQLite (StaticPool). No other depende
 ## 7. API
 | Method | Path | Purpose | Codes |
 |---|---|---|---|
-| GET | `/api/slots?date=` | 7 slots, each with `available` (false if taken or already past) | 200, 400, 422 |
+| GET | `/api/slots?date=` | 7 slots, each with `available`: false if taken, already past, or the date is a Sunday or past date. Same rule as open slots | 200, 422 |
 | POST | `/api/appointments` | create booking | 201, 400, 409, 422 |
 | GET | `/api/appointments?date=` | list for date, sorted by slot | 200, 422 |
 | PATCH | `/api/appointments/{id}/status` | `{status}` | 200, 400, 404, 422 |
-| GET | `/api/summary?date=` | `{date, total, by_service:{4 keys}, open_slots}` | 200, 422 |
+| GET | `/api/summary?date=` | `{date, total, by_service:{4 keys}, open_slots}`; open = unbooked and still bookable | 200, 422 |
 
 `/api/slots` is a small extra that makes F1 friendlier (disabled taken slots). If time runs
 short, it's the first thing to cut; the 409 message still protects the rule.
@@ -122,7 +132,7 @@ short, it's the first thing to cut; the 409 message still protects the rule.
 | Reject invalid contact (11 digits, starts 09) | F1 Pydantic → 422 · Step 3 (tests) + UI check Step 5 |
 | Staff view appointments for a selected date | F2 · Steps 4 + 6 |
 | Staff mark Completed / No-show | F2 · Steps 2, 4 + 6 |
-| Daily summary: total, per service, open slots | F3 · Steps 2, 4 + 6 |
+| Daily summary: total, per service, open slots (unbooked and still bookable) | F3 · Steps 2, 4 + 6 |
 | At least 3 test cases | ~20 automated pytest cases (Steps 1–4) + manual table in TESTING.md · Step 8 |
 | Documentation of AI usage | `docs/AI_LOG.md` updated every step; filled template · Step 8 |
 
@@ -135,7 +145,7 @@ SMS reminders, holidays, pagination.
 
 ---
 
-## 10. Checkpoints (≈ 2 h of building)
+## 10. Checkpoints (≈ 2 h 10 min of building)
 
 Each step: build → run the tests/app → show output → commit `Step N: …` → append to AI_LOG → **stop**.
 
@@ -152,26 +162,39 @@ Each step: build → run the tests/app → show output → commit `Step N: …` 
 - **Build:** `services/booking.py` with `SLOTS`, `SERVICES`, `now_ph()`,
   `check_bookable(date, slot, now) -> None` (raises `BookingError`),
   `can_change_status(current, new) -> bool`, `slot_has_passed(date, slot, now) -> bool`;
-  `services/summary.py` with `build_summary(date, appointments) -> dict`.
+  `is_closed_day(date) -> bool` (the single Sunday rule, reused by `check_bookable` and the summary);
+  `services/summary.py` with `build_summary(date, appointments, now) -> dict`, where
+  open slots = count of `SLOTS` that are not booked, and not `slot_has_passed`, on a day that is not `is_closed_day`.
 - **Tests first** (`tests/test_rules.py`): past date rejected; Sunday rejected; today with a passed slot rejected;
   today with a future slot OK; future Saturday OK; Booked→Completed OK; Completed→No-show rejected;
-  summary counts per service with zeros filled in and open = 7 − total.
+  summary counts per service with zeros filled in; open slots on a future weekday with 2 bookings = 5;
+  **today at 2:10 PM with 0 bookings = 1 open** (only 15:00 left); **today at 2:10 PM with 15:00 booked = 0**;
+  **a Sunday = 0 open**; a past date = 0 open.
 - **Verify:** show the tests failing first (RED), then all of them passing (GREEN) in the pytest output.
 
 ### Step 3 — Booking API (~20 min)
 - **Build:** `schemas.py` (`AppointmentCreate`, `AppointmentOut`, `StatusUpdate`, `SlotOut`, `SummaryOut`);
   `routers/appointments.py` with `POST /api/appointments`; `routers/slots.py` with `GET /api/slots`.
   IntegrityError → 409; BookingError → 400.
+  `RequestValidationError` handler in `main.py`: a `FRIENDLY_MESSAGES` dict maps field name → message
+  (name, contact_number, service, appointment_date, time_slot, status, date), and the handler returns
+  `422 {"detail": "<message>"}` for the first failing field. A field that isn't in the dict gets
+  "Please check your input." so raw Pydantic text never leaks.
 - **Tests** (`tests/test_booking_api.py`): valid booking 201; same slot twice 409; past date 400;
   Sunday 400; contact `0912345678` (10 digits) 422; contact `08123456789` 422; name `" A "` 422;
+  **bad contact returns exactly `{"detail": "Contact number must be 11 digits starting with 09."}`**;
+  invalid service returns `{"detail": "Please choose a valid service."}`;
   slots endpoint marks the booked slot unavailable.
 - **Verify:** pytest all green; a manual `curl` POST against the running server shows 201, then 409.
 
 ### Step 4 — Staff API + summary (~15 min)
 - **Build:** `GET /api/appointments?date=`, `PATCH /api/appointments/{id}/status`, `routers/summary.py` `GET /api/summary?date=`.
 - **Tests** (`tests/test_staff_api.py`): list is filtered by date and sorted by slot; mark Completed 200;
-  re-mark 400; unknown id 404; invalid status 422; summary after 3 bookings (2 services) returns the right counts and open = 4.
-- **Verify:** pytest all green (≈20 tests); curl `/api/summary` output shown.
+  re-mark 400; unknown id 404; invalid status 422 with the friendly message; summary for a future weekday after
+  3 bookings (2 services) returns the right counts and open = 4; **summary for a Sunday returns open_slots = 0**;
+  **summary for today after 2 PM returns only the unbooked slots after "now" as open**. The summary router takes "now"
+  from an injectable `get_now` dependency so the test can fix it at 2:10 PM, and the same override pattern is used as `get_db`.
+- **Verify:** pytest all green (≈25 tests); curl `/api/summary` output shown.
 
 ### Step 5 — Resident "Book Appointment" tab (~20 min)
 - **Build:** `index.html` (Tailwind CDN, header, two tabs, booking form); `js/api.js` (fetch wrappers that turn
@@ -191,6 +214,14 @@ Each step: build → run the tests/app → show output → commit `Step N: …` 
   error banner when the server is unreachable; check the layout at ~375 px width.
 - **Verify:** `python seed_data.py` prints the count; the app shows the seeded data; mobile-width screenshot in the Browser pane.
 
+### Step 7.5 — Refactor (~10 min)
+- **Before:** run `python -m pytest -v` and save the output (all green).
+- **Refactor one real target, with no behavior change.** Pick whichever is actually duplicated by then:
+  (a) the repeated `fetch` → check `res.ok` → read `detail` → throw logic in `js/api.js`, collapsed into one `request(method, path, body)` helper; or
+  (b) the error-to-status mapping in the routers (`BookingError` → 400, `IntegrityError` → 409, not found → 404) moved into one place.
+- **After:** run `python -m pytest -v` again (same pass count). For (a), also re-click one booking and one status change in the Browser pane.
+- **Show:** before/after code snippets and both test outputs; log them in AI_LOG for section 6.4 of the documentation.
+
 ### Step 8 — Documentation + final check (~10 min)
 - **Build:** `docs/TESTING.md` (table of the automated tests + 5 manual UI tests with expected/actual results);
   complete `docs/AI_LOG.md`; README run instructions; fill the relevant parts of `DOCUMENTATION_TEMPLATE.md` (text only, screenshots are Rafael's).
@@ -202,6 +233,8 @@ Each step: build → run the tests/app → show output → commit `Step N: …` 
 3. A whitespace-only or 1-letter name after trimming → 422 test (Step 3).
 4. A contact number with a dash, space, or 10/12 digits → 422 test (Step 3).
 5. Changing a status that's already final, or a nonexistent id → 400/404 tests (Step 4).
+6. Open slots vs. the clock: today after 2 PM, Sundays, and past dates → unit tests (Step 2) + API tests (Step 4).
+7. Raw Pydantic error text reaching the UI → friendly-message handler test (Step 3).
 
 ## Verification (end-to-end)
 `cd backend` → `python -m pytest -v` (all pass) → `python seed_data.py` →
