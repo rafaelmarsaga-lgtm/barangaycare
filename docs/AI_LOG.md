@@ -42,3 +42,11 @@
 - **Browser checks:** empty submit → 4 inline errors + focus on Name; Sunday → closed message; Monday slots match DB; 10-digit contact → inline error; valid booking → confirmation #3; slot taken via curl behind the UI → 409 alert + slot refreshed to Unavailable; XSS name `<img onerror=…>` shown as text, no element created; desktop two-column layout OK.
 - **False alarm:** a selected slot looked unselected in one screenshot; computed style showed the blue background was applied, so it was a screenshot taken before repaint, not a bug.
 - **Test result:** backend suite still `73 passed`; no JS console errors (only the browser's log of the intentional 409).
+- **Follow-up:** the design hook flagged a flat type hierarchy; raised the h1 to 30/36px (1.9× body). Committed separately.
+
+## Step 6 — Staff tab: list, status buttons, summary (2026-09-24)
+- **Asked:** "Proceed to Step 6": staff date picker, summary cards, appointment list with Completed/No-show.
+- **AI produced:** staff panel in `index.html` (6 summary cards, grid list that is a table on desktop and cards on phones), `api.js` `getAppointments/getSummary/updateStatus`, `ui.js` `renderSummary/renderAppointments/renderListSkeleton`, `app.js` `loadStaff` (list + summary in parallel, stale-response guard), `markStatus`, refresh on tab switch.
+- **Bugs found in the Browser pane and fixed:** (1) a long unbroken name pushed the page 15px wider than a phone, so the columns became `minmax(0,1fr)` + `overflow-wrap:anywhere`; (2) after a failed status update (someone else already marked it) the row stayed stale, so the list now reloads, then the error is shown; (3) the staff error box was always visible because Tailwind `flex` overrode the `hidden` attribute, so a global `[hidden]{display:none!important}` was added; (4) "10:00 AM" wrapped, so the column was widened and nowrap added.
+- **Browser checks:** today empty state; Monday 5 rows sorted, summary total 5 / open 2; No-show click → badge updates, buttons removed, focus to list heading; stale click → "Status is already final." + row refreshed; Sunday → "closed on Sundays", open 0; server stopped → "Cannot reach the server…", Reload recovers; no horizontal scroll at 393px; desktop table OK.
+- **Test result:** backend `73 passed`; console only shows the browser's log of intentional 409/400/offline requests.

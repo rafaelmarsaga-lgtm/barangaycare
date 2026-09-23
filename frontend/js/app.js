@@ -1,7 +1,7 @@
-import { createAppointment, getSlots } from "./api.js";
+import { createAppointment, getAppointments, getSlots, getSummary, updateStatus } from "./api.js";
 import {
-  clearFieldErrors, formatDate, formatSlot, hideAlert, renderSlotSkeleton,
-  renderSlots, setButtonLoading, showAlert, showFieldError,
+  clearFieldErrors, formatDate, formatSlot, hideAlert, renderAppointments, renderListSkeleton,
+  renderSlotSkeleton, renderSlots, renderSummary, setButtonLoading, showAlert, showFieldError,
 } from "./ui.js";
 
 // Same rules as the server (schemas.py / booking.py), checked here only so
@@ -50,6 +50,8 @@ function selectTab(tab) {
     t.classList.toggle("hover:bg-brand-50", !selected);
     $(t.getAttribute("aria-controls")).hidden = !selected;
   }
+  // Refresh on every visit so bookings made in the other tab show up.
+  if (tab.id === "tab-staff") loadStaff();
 }
 
 tabs.forEach((tab, index) => {
@@ -193,7 +195,69 @@ $("book-another").addEventListener("click", () => {
   $("name").focus();
 });
 
+// ---------------------------------------------------------------- staff
+
+const staffDate = $("staff-date");
+const staffAlert = $("staff-alert");
+const appointmentList = $("appointment-list");
+const listEmpty = $("list-empty");
+
+let staffRequest = 0; // ignore stale responses when the date changes quickly
+
+function showStaffError(message) {
+  $("staff-alert-text").textContent = message;
+  staffAlert.hidden = false;
+}
+
+async function loadStaff() {
+  const date = staffDate.value;
+  const requestId = ++staffRequest;
+  staffAlert.hidden = true;
+  listEmpty.hidden = true;
+  appointmentList.setAttribute("aria-busy", "true");
+  renderListSkeleton(appointmentList);
+
+  try {
+    // Independent requests, so fetch them at the same time.
+    const [appointments, summary] = await Promise.all([getAppointments(date), getSummary(date)]);
+    if (requestId !== staffRequest) return;
+    renderSummary(summary);
+    renderAppointments(appointmentList, appointments, markStatus);
+    if (appointments.length === 0) {
+      listEmpty.textContent = isSunday(date)
+        ? "The health center is closed on Sundays."
+        : `No appointments for ${formatDate(date)}.`;
+      listEmpty.hidden = false;
+    }
+  } catch (error) {
+    if (requestId !== staffRequest) return;
+    appointmentList.replaceChildren();
+    showStaffError(error.message);
+  } finally {
+    if (requestId === staffRequest) appointmentList.setAttribute("aria-busy", "false");
+  }
+}
+
+async function markStatus(appointment, status, buttons) {
+  buttons.forEach((b) => { b.disabled = true; });
+  try {
+    await updateStatus(appointment.id, status);
+    await loadStaff(); // re-read list AND summary from the server, the source of truth
+    // The clicked button no longer exists; keep keyboard focus somewhere sensible.
+    $("list-heading").focus();
+  } catch (error) {
+    // 400/404 mean the server's data differs from what's on screen (e.g. another
+    // staff member already marked it), so reload first, then show why it failed.
+    await loadStaff();
+    showStaffError(error.message);
+  }
+}
+
+staffDate.addEventListener("change", () => { if (staffDate.value) loadStaff(); });
+$("staff-retry").addEventListener("click", loadStaff);
+
 // ---------------------------------------------------------------- start
 
 dateInput.min = todayISO();
+staffDate.value = todayISO();
 selectTab(tabs[0]);

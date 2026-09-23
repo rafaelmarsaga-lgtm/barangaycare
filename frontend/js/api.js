@@ -36,3 +36,43 @@ export async function createAppointment(appointment) {
   }
   return data;
 }
+
+export async function getAppointments(date) {
+  let response;
+  try {
+    response = await fetch(`/api/appointments?date=${encodeURIComponent(date)}`);
+  } catch {
+    throw new Error(OFFLINE_MESSAGE);
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || GENERIC_MESSAGE);
+  return data;
+}
+
+export async function getSummary(date) {
+  let response;
+  try {
+    response = await fetch(`/api/summary?date=${encodeURIComponent(date)}`);
+  } catch {
+    throw new Error(OFFLINE_MESSAGE);
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || GENERIC_MESSAGE);
+  return data;
+}
+
+export async function updateStatus(id, status) {
+  let response;
+  try {
+    response = await fetch(`/api/appointments/${encodeURIComponent(id)}/status`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ status }),
+    });
+  } catch {
+    throw new Error(OFFLINE_MESSAGE);
+  }
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) throw new Error(data.detail || GENERIC_MESSAGE);
+  return data;
+}
