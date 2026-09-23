@@ -17,3 +17,9 @@
 - **AI produced:** `database.py` (DATABASE_URL env var, StaticPool for in-memory), `models.py` (UNIQUE(appointment_date, time_slot)), `main.py` (lifespan create_all, `/api/health`, static mount), `now_ph()` in `services/booking.py`, `conftest.py`, 3 tests, placeholder `index.html`, `.claude/launch.json`.
 - **Changes vs. plan:** tests switch the DB with `DATABASE_URL=sqlite://` instead of overriding `get_db`, so lifespan creates tables on the test DB and no real `.db` file is touched. `now_ph()` was created now (needed by `created_at`), not in Step 2.
 - **Test result:** RED first (ModuleNotFoundError), then `3 passed`; live server `/api/health` → `{"status":"ok"}`, `/` → 200.
+
+## Step 2 — Business rules, TDD (2026-09-24)
+- **Asked:** "Proceed to Step 2": pure booking/status/summary rules, tests first.
+- **AI produced:** `tests/test_rules.py` (24 tests on a fixed clock, Thu 2026-09-24 14:10 PH); `services/booking.py` (`SLOTS`, `SERVICES`, `BookingError`, `is_closed_day`, `slot_has_passed`, `check_bookable`, `can_change_status`); `services/summary.py` (`build_summary`, `count_open_slots`).
+- **Decisions:** a slot that has already started counts as passed (14:00 at 14:10 cannot be booked); open slots reuse `is_closed_day` + `slot_has_passed`, and an extra test guards against subtracting a booked-and-passed slot twice.
+- **Test result:** RED `24 failed` (NotImplementedError stubs) → GREEN `27 passed` (full suite).
