@@ -1,2 +1,9 @@
 # Per-machine Claude Code permissions
 .claude/settings.local.json
+
+# Python / test caches
+__pycache__/
+.pytest_cache/
+
+# Local database (recreated on startup, filled by seed_data.py)
+*.db
