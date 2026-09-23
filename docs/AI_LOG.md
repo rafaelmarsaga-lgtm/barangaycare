@@ -23,3 +23,9 @@
 - **AI produced:** `tests/test_rules.py` (24 tests on a fixed clock, Thu 2026-09-24 14:10 PH); `services/booking.py` (`SLOTS`, `SERVICES`, `BookingError`, `is_closed_day`, `slot_has_passed`, `check_bookable`, `can_change_status`); `services/summary.py` (`build_summary`, `count_open_slots`).
 - **Decisions:** a slot that has already started counts as passed (14:00 at 14:10 cannot be booked); open slots reuse `is_closed_day` + `slot_has_passed`, and an extra test guards against subtracting a booked-and-passed slot twice.
 - **Test result:** RED `24 failed` (NotImplementedError stubs) → GREEN `27 passed` (full suite).
+
+## Step 3 — Booking API + friendly validation errors (2026-09-24)
+- **Asked:** "Proceed to Step 3": POST /api/appointments, GET /api/slots, schemas, and a RequestValidationError handler returning `{"detail": "<friendly message>"}`.
+- **AI produced:** `schemas.py` (constrained Name/ContactNumber types, Literal service/slot, `FRIENDLY_MESSAGES`), `routers/appointments.py` (BookingError → 400, IntegrityError → 409), `routers/slots.py`, 422 handler in `main.py`, `open_slots()` shared by slots + summary, 30 new tests.
+- **Changes vs. plan:** `now_ph` is used directly as the injectable "now" dependency, brought forward from Step 4 (the booking endpoint needs it too). No "is it free?" SELECT before insert: the UNIQUE constraint is the single check.
+- **Test result:** RED `30 failed` (405 / NotImplementedError) → GREEN `57 passed`. Live curl: 201 then 409 on the same slot; bad contact → 422 friendly message; Sunday → 400. The first live call returned 405 because the auto-reloader was still restarting, not a code bug.

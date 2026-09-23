@@ -12,6 +12,7 @@ from app.services.booking import (
     can_change_status,
     check_bookable,
     is_closed_day,
+    open_slots,
     slot_has_passed,
 )
 from app.services.summary import build_summary
@@ -110,6 +111,20 @@ def test_completed_is_final():
 
 def test_no_show_is_final():
     assert can_change_status("No-show", "Completed") is False
+
+
+# --- open_slots (shared by /api/slots and the summary) -----------------------
+
+def test_open_slots_lists_unbooked_future_slots_in_order():
+    assert open_slots(MONDAY, {"09:00", "13:00"}, NOW) == ["08:00", "10:00", "11:00", "14:00", "15:00"]
+
+
+def test_open_slots_today_after_2pm():
+    assert open_slots(TODAY, set(), NOW) == ["15:00"]
+
+
+def test_open_slots_on_sunday_is_empty():
+    assert open_slots(SUNDAY, set(), NOW) == []
 
 
 # --- build_summary -----------------------------------------------------------

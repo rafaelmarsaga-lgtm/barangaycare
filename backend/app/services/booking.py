@@ -37,6 +37,18 @@ def slot_has_passed(day: date, slot: str, now: datetime) -> bool:
     return slot_start <= now
 
 
+def open_slots(day: date, booked_slots: set[str], now: datetime) -> list[str]:
+    """Slots that are unbooked AND still bookable, in time order. Shared by the
+    slot picker and the daily summary so they can never disagree."""
+    if is_closed_day(day):
+        return []
+    # slot_has_passed is True for every slot on a past date, so past dates give [].
+    return [
+        slot for slot in SLOTS
+        if slot not in booked_slots and not slot_has_passed(day, slot, now)
+    ]
+
+
 def check_bookable(day: date, slot: str, now: datetime) -> None:
     """Raise BookingError if this date/slot can't be booked. Order matters:
     the most general reason is reported first."""
