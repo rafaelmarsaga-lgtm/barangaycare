@@ -84,3 +84,9 @@
   72 → 34 non-empty lines; `fetch()` call sites 5 → 1 (`+17 / −56`). A future fix (e.g. a timeout) now goes in one place.
 - **Why pytest alone wasn't enough:** pytest only covers the backend, so I also ran a browser harness that called all 5 api.js functions (14 calls, success + every error path) against a freshly seeded DB, before and after.
 - **Test result:** pytest BEFORE `73 passed` → AFTER `73 passed`. Harness: 14/14 identical results and messages. One observable difference, reviewed: errors from the other 4 functions now also carry `error.status` (previously only `createAppointment`). The only reader is `app.js:171` (booking submit, `=== 409`), which was unchanged, so there's no user-visible change. UI re-check: booking ✓, 409 reloads the slot ✓, status change with confirm ✓, no JS errors.
+
+## Step 8 — Documentation + final check (2026-09-24)
+- **Asked:** "Proceed to Step 8": TESTING.md, finish AI_LOG, README run instructions, fill the documentation template, fresh final run.
+- **AI produced:** `docs/TESTING.md` (73 automated tests grouped by file, 12 key cases with expected/actual, 8 manual UI tests, known limitations), `README.md` (run/test commands, layout, API), `docs/DOCUMENTATION.md` (template filled in; `[SCREENSHOT]`, surname and personal reflections left for Rafael; template file untouched).
+- **Correction:** the template listed a "Frontend Design" plugin that wasn't installed; the docs now say what was actually used.
+- **Final fresh run:** stopped server → deleted `barangaycare.db` → `python seed_data.py` ("Seeded 9 appointments.", table created from scratch) → `python -m pytest -v` → `73 passed` → started server → 8 manual UI tests all PASS (see TESTING.md §2). Console: no JS exceptions; only the browser's log of intentional 4xx requests and Tailwind's CDN "not for production" warning (expected with the exam kit, noted as a known limitation).
