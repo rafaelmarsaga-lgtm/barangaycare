@@ -35,3 +35,10 @@
 - **AI produced:** `GET /api/appointments?date=` (sorted by slot), `PATCH /api/appointments/{id}/status` (404 / 400 "Status is already final."), `routers/summary.py` using `build_summary` + injectable `now_ph`; 16 new tests incl. Sunday = 0 open and today-after-2 PM.
 - **Debugging:** live curl gave 404/405 while tests passed. Server logs showed "StatReload detected changes … Reloading..." with no "Started server process", so the old process was still serving. Root cause: the uvicorn reload hung, not the code. Fix: restarted the server; all endpoints then correct.
 - **Test result:** RED `16 failed` → GREEN `73 passed`. Live: list 200, Completed 200, re-mark 400, id 999 → 404, summary Mon `total 2, open 5`, Sunday `open 0`.
+
+## Step 5 — Resident "Book Appointment" tab (2026-09-24)
+- **Asked:** "Proceed to Step 5": booking UI with the ui-ux-pro-max skill.
+- **AI produced:** `index.html` (two ARIA tabs, form, slot radio grid, success card, info sidebar), `js/api.js` (fetch + friendly/offline errors), `js/ui.js` (textContent-only rendering, slot grid, skeleton), `js/app.js` (tabs with arrow keys, client validation mirroring the server, 409 → reload slots). Design system from ui-ux-pro-max: "Accessible & Ethical" style, blue #1E40AF + green, Atkinson Hyperlegible, 44px targets; skipped its "Enterprise Gateway" landing-page pattern (wrong fit for a form).
+- **Browser checks:** empty submit → 4 inline errors + focus on Name; Sunday → closed message; Monday slots match DB; 10-digit contact → inline error; valid booking → confirmation #3; slot taken via curl behind the UI → 409 alert + slot refreshed to Unavailable; XSS name `<img onerror=…>` shown as text, no element created; desktop two-column layout OK.
+- **False alarm:** a selected slot looked unselected in one screenshot; computed style showed the blue background was applied, so it was a screenshot taken before repaint, not a bug.
+- **Test result:** backend suite still `73 passed`; no JS console errors (only the browser's log of the intentional 409).

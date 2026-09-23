@@ -3,10 +3,176 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>BarangayCare</title>
+  <title>BarangayCare — Health Center Appointments</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:wght@400;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['"Atkinson Hyperlegible"', 'system-ui', 'Segoe UI', 'sans-serif'] },
+          colors: {
+            brand: { 50: '#EFF6FF', 100: '#DBEAFE', 200: '#BFDBFE', 600: '#2563EB', 700: '#1E40AF', 900: '#1E3A8A' },
+          },
+        },
+      },
+    };
+  </script>
 </head>
-<body>
-  <h1>BarangayCare</h1>
-  <p>Barangay Health Center Appointment System — UI coming in Step 5.</p>
+<body class="min-h-screen bg-brand-50 font-sans text-slate-800 antialiased">
+  <a href="#main" class="sr-only focus:not-sr-only focus:absolute focus:left-4 focus:top-4 focus:z-50 focus:rounded-lg focus:bg-white focus:px-4 focus:py-2 focus:shadow">Skip to content</a>
+
+  <header class="bg-brand-700 text-white">
+    <div class="mx-auto flex max-w-5xl flex-wrap items-center justify-between gap-3 px-4 py-5">
+      <div class="flex items-center gap-3">
+        <svg aria-hidden="true" class="h-10 w-10 shrink-0" viewBox="0 0 40 40" fill="none">
+          <rect width="40" height="40" rx="10" fill="white" fill-opacity=".15"/>
+          <path d="M17 10h6v7h7v6h-7v7h-6v-7h-7v-6h7z" fill="white"/>
+        </svg>
+        <div>
+          <p class="text-xl font-bold leading-tight">BarangayCare</p>
+          <p class="text-sm text-brand-100">Barangay Health Center Appointments</p>
+        </div>
+      </div>
+      <p class="text-sm text-brand-100">Open Mon–Sat · 8:00 AM – 4:00 PM</p>
+    </div>
+  </header>
+
+  <main id="main" class="mx-auto max-w-5xl px-4 pb-16 pt-6">
+    <!-- Tabs -->
+    <div role="tablist" aria-label="Sections" class="mb-6 inline-flex w-full rounded-xl bg-white p-1 shadow-sm ring-1 ring-brand-200 sm:w-auto">
+      <button role="tab" id="tab-book" aria-controls="panel-book" aria-selected="true"
+        class="tab min-h-[44px] flex-1 cursor-pointer rounded-lg px-5 font-bold transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-600/40 sm:flex-none">
+        Book Appointment
+      </button>
+      <button role="tab" id="tab-staff" aria-controls="panel-staff" aria-selected="false" tabindex="-1"
+        class="tab min-h-[44px] flex-1 cursor-pointer rounded-lg px-5 font-bold transition-colors motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-600/40 sm:flex-none">
+        Staff
+      </button>
+    </div>
+
+    <!-- ============ BOOK APPOINTMENT ============ -->
+    <section id="panel-book" role="tabpanel" aria-labelledby="tab-book">
+      <div class="grid gap-6 lg:grid-cols-[1fr_18rem]">
+
+        <div class="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-brand-200 sm:p-8">
+          <!-- Booking form -->
+          <form id="booking-form" novalidate>
+            <h1 class="text-2xl font-bold text-brand-900">Book a check-up</h1>
+            <p class="mt-1 text-slate-600">All fields are required. One appointment per time slot.</p>
+
+            <div id="form-alert" role="alert" hidden
+              class="mt-5 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-800"></div>
+
+            <div class="mt-6 grid gap-5 sm:grid-cols-2">
+              <div class="sm:col-span-2">
+                <label for="name" class="block font-bold text-slate-900">Full name</label>
+                <input id="name" name="name" type="text" autocomplete="name" maxlength="100"
+                  aria-describedby="name-error"
+                  class="field mt-1.5 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 text-base focus:border-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-600/25">
+                <p id="name-error" class="field-error mt-1 text-sm font-bold text-red-700" hidden></p>
+              </div>
+
+              <div>
+                <label for="contact_number" class="block font-bold text-slate-900">Contact number</label>
+                <input id="contact_number" name="contact_number" type="tel" inputmode="numeric" autocomplete="tel"
+                  maxlength="11" placeholder="09XXXXXXXXX" aria-describedby="contact-hint contact_number-error"
+                  class="field mt-1.5 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 text-base focus:border-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-600/25">
+                <p id="contact-hint" class="mt-1 text-sm text-slate-600">11 digits, starts with 09. No spaces or dashes.</p>
+                <p id="contact_number-error" class="field-error mt-1 text-sm font-bold text-red-700" hidden></p>
+              </div>
+
+              <div>
+                <label for="service" class="block font-bold text-slate-900">Service</label>
+                <select id="service" name="service" aria-describedby="service-error"
+                  class="field mt-1.5 block min-h-[44px] w-full cursor-pointer rounded-lg border border-slate-300 bg-white px-3 text-base focus:border-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-600/25">
+                  <option value="">Choose a service…</option>
+                  <option>General Check-up</option>
+                  <option>Prenatal</option>
+                  <option>Immunization</option>
+                  <option>Dental</option>
+                </select>
+                <p id="service-error" class="field-error mt-1 text-sm font-bold text-red-700" hidden></p>
+              </div>
+
+              <div class="sm:col-span-2">
+                <label for="appointment_date" class="block font-bold text-slate-900">Preferred date</label>
+                <input id="appointment_date" name="appointment_date" type="date" aria-describedby="appointment_date-error"
+                  class="field mt-1.5 block min-h-[44px] w-full rounded-lg border border-slate-300 px-3 text-base focus:border-brand-700 focus:outline-none focus:ring-4 focus:ring-brand-600/25 sm:w-64">
+                <p id="appointment_date-error" class="field-error mt-1 text-sm font-bold text-red-700" hidden></p>
+              </div>
+
+              <fieldset class="sm:col-span-2" aria-describedby="time_slot-error">
+                <legend class="font-bold text-slate-900">Time slot</legend>
+                <p id="slots-status" class="mt-1.5 text-sm text-slate-600" aria-live="polite">Choose a date first to see open slots.</p>
+                <div id="slots" class="mt-2 grid grid-cols-2 gap-2 sm:grid-cols-4"></div>
+                <p id="time_slot-error" class="field-error mt-1 text-sm font-bold text-red-700" hidden></p>
+              </fieldset>
+            </div>
+
+            <button id="submit-btn" type="submit"
+              class="mt-8 inline-flex min-h-[48px] w-full cursor-pointer items-center justify-center gap-2 rounded-lg bg-brand-700 px-6 text-lg font-bold text-white transition-colors hover:bg-brand-900 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-600/40 disabled:cursor-not-allowed disabled:opacity-60 motion-reduce:transition-none sm:w-auto">
+              <svg id="submit-spinner" hidden aria-hidden="true" class="h-5 w-5 animate-spin motion-reduce:animate-none" viewBox="0 0 24 24" fill="none">
+                <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-opacity=".3" stroke-width="4"/>
+                <path d="M22 12a10 10 0 0 0-10-10" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+              </svg>
+              <span id="submit-label">Book appointment</span>
+            </button>
+          </form>
+
+          <!-- Success state (replaces the form) -->
+          <div id="booking-success" hidden tabindex="-1" class="focus:outline-none">
+            <div class="flex items-start gap-3">
+              <svg aria-hidden="true" class="mt-1 h-8 w-8 shrink-0 text-green-600" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                <circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+              <div>
+                <h2 class="text-2xl font-bold text-brand-900">Appointment booked</h2>
+                <p class="mt-1 text-slate-600">Please arrive 10 minutes early and bring a valid ID.</p>
+              </div>
+            </div>
+            <dl class="mt-6 grid gap-x-6 gap-y-3 rounded-xl bg-brand-50 p-5 sm:grid-cols-2">
+              <div><dt class="text-sm text-slate-600">Reference no.</dt><dd id="ok-id" class="font-bold text-slate-900"></dd></div>
+              <div><dt class="text-sm text-slate-600">Name</dt><dd id="ok-name" class="font-bold text-slate-900"></dd></div>
+              <div><dt class="text-sm text-slate-600">Service</dt><dd id="ok-service" class="font-bold text-slate-900"></dd></div>
+              <div><dt class="text-sm text-slate-600">Date &amp; time</dt><dd id="ok-when" class="font-bold text-slate-900"></dd></div>
+            </dl>
+            <button id="book-another" type="button"
+              class="mt-6 inline-flex min-h-[44px] cursor-pointer items-center rounded-lg border-2 border-brand-700 px-5 font-bold text-brand-700 transition-colors hover:bg-brand-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-brand-600/40 motion-reduce:transition-none">
+              Book another appointment
+            </button>
+          </div>
+        </div>
+
+        <!-- Info sidebar -->
+        <aside class="h-fit rounded-2xl bg-white p-5 shadow-sm ring-1 ring-brand-200">
+          <h2 class="font-bold text-brand-900">Clinic hours</h2>
+          <ul class="mt-2 space-y-1 text-slate-700">
+            <li>Monday – Saturday</li>
+            <li>8:00 – 11:00 AM, 1:00 – 3:00 PM slots</li>
+            <li class="font-bold text-red-700">Closed on Sundays</li>
+          </ul>
+          <h2 class="mt-5 font-bold text-brand-900">Services</h2>
+          <ul class="mt-2 list-inside list-disc space-y-1 text-slate-700">
+            <li>General Check-up</li>
+            <li>Prenatal</li>
+            <li>Immunization</li>
+            <li>Dental</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <!-- ============ STAFF (Step 6) ============ -->
+    <section id="panel-staff" role="tabpanel" aria-labelledby="tab-staff" hidden>
+      <div class="rounded-2xl bg-white p-8 text-slate-600 shadow-sm ring-1 ring-brand-200">
+        Staff view is built in Step 6.
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="js/app.js"></script>
 </body>
 </html>
