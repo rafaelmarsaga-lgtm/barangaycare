@@ -50,3 +50,12 @@
 - **Bugs found in the Browser pane and fixed:** (1) a long unbroken name pushed the page 15px wider than a phone, so the columns became `minmax(0,1fr)` + `overflow-wrap:anywhere`; (2) after a failed status update (someone else already marked it) the row stayed stale, so the list now reloads, then the error is shown; (3) the staff error box was always visible because Tailwind `flex` overrode the `hidden` attribute, so a global `[hidden]{display:none!important}` was added; (4) "10:00 AM" wrapped, so the column was widened and nowrap added.
 - **Browser checks:** today empty state; Monday 5 rows sorted, summary total 5 / open 2; No-show click → badge updates, buttons removed, focus to list heading; stale click → "Status is already final." + row refreshed; Sunday → "closed on Sundays", open 0; server stopped → "Cannot reach the server…", Reload recovers; no horizontal scroll at 393px; desktop table OK.
 - **Test result:** backend `73 passed`; console only shows the browser's log of intentional 409/400/offline requests.
+- **Follow-up:** design hook re-flagged flat type hierarchy; measured 30/36px vs 16px (1.9×), so recorded a narrow false-positive ignore in `.impeccable/config.json` (this rule, this file only).
+
+## Step 7 — Seed data + confirmation before status change (2026-09-24)
+- **Asked:** "Proceed to Step 7 and add the confirmation before Completed/No-show" (my Step 6 suggestion, approved by Rafael).
+- **AI produced:** `seed_data.py` (resets table; 9 rows relative to today: previous open day with Completed/No-show, next 3 open days, Sundays skipped; every row validated through `AppointmentCreate`). Inline confirm in `ui.js`: click → "Mark as X?" with "Yes, X" / "Cancel" in the same row; Esc cancels; focus moves to "Yes" and back to the original button on cancel.
+- **Decision:** an inline confirm instead of `window.confirm()`: it's styled, easier to tap on phones, keyboard-accessible, and doesn't rely on the browser showing a dialog.
+- **Bug caught before running:** reused the name `who` in the same block (would be a SyntaxError that stops all JS); renamed to `person`.
+- **Browser checks:** No-show → confirm shown, server still Booked; Esc → buttons back, focus restored, server unchanged; Cancel → same; Completed → Yes → saved (server Completed), buttons gone; desktop confirm fits the 13rem column; 375px: no horizontal scroll on booking, slots, staff list, or confirm.
+- **Test result:** seed prints `Seeded 9 appointments.` twice with 9 rows total (re-runnable); backend `73 passed`.

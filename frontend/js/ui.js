@@ -91,9 +91,25 @@ export function renderListSkeleton(list) {
   }
 }
 
-/** One row per appointment. `onMark(appointment, status, buttons)` is called
- *  when staff click Completed / No-show; buttons only exist while Booked,
- *  because Completed and No-show are final. */
+const BUTTON_BASE = "min-h-[44px] flex-1 cursor-pointer rounded-lg px-3 text-sm font-bold focus-visible:outline-none focus-visible:ring-4 disabled:cursor-wait disabled:opacity-60 md:flex-none";
+const BUTTON_STYLE = {
+  Completed: `${BUTTON_BASE} bg-green-700 text-white hover:bg-green-800 focus-visible:ring-green-600/40`,
+  "No-show": `${BUTTON_BASE} border-2 border-amber-700 text-amber-900 hover:bg-amber-50 focus-visible:ring-amber-600/40`,
+  confirmNoShow: `${BUTTON_BASE} bg-amber-700 text-white hover:bg-amber-800 focus-visible:ring-amber-600/40`,
+  cancel: `${BUTTON_BASE} border-2 border-slate-300 text-slate-700 hover:bg-slate-50 focus-visible:ring-brand-600/40`,
+};
+
+function button(className, text, ariaLabel) {
+  const el = textEl("button", className, text);
+  el.type = "button";
+  if (ariaLabel) el.setAttribute("aria-label", ariaLabel);
+  return el;
+}
+
+/** One row per appointment. Buttons only exist while Booked, because Completed
+ *  and No-show are final. Because a mis-click can't be undone, each button first
+ *  asks "Mark … as …?" inside the row; only "Yes" calls
+ *  `onMark(appointment, status, buttons)`. */
 export function renderAppointments(list, appointments, onMark) {
   list.replaceChildren();
   for (const appt of appointments) {
@@ -115,17 +131,33 @@ export function renderAppointments(list, appointments, onMark) {
     const badge = textEl("span", `w-fit rounded-full px-3 py-1 text-sm font-bold ${STATUS_BADGE[appt.status] || ""}`, appt.status);
 
     const actions = document.createElement("div");
-    actions.className = "col-span-2 flex gap-2 md:col-span-1 md:justify-end";
+    actions.className = "col-span-2 flex flex-wrap items-center gap-2 md:col-span-1 md:justify-end";
     if (appt.status === "Booked") {
-      const done = textEl("button", "min-h-[44px] flex-1 cursor-pointer rounded-lg bg-green-700 px-3 text-sm font-bold text-white hover:bg-green-800 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-green-600/40 disabled:cursor-wait disabled:opacity-60 md:flex-none", "Completed");
-      const noShow = textEl("button", "min-h-[44px] flex-1 cursor-pointer rounded-lg border-2 border-amber-700 px-3 text-sm font-bold text-amber-900 hover:bg-amber-50 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-amber-600/40 disabled:cursor-wait disabled:opacity-60 md:flex-none", "No-show");
-      for (const button of [done, noShow]) {
-        button.type = "button";
-        // Screen readers hear "Completed, Juan Dela Cruz 9:00 AM" instead of just "Completed".
-        button.setAttribute("aria-label", `Mark ${appt.name} (${formatSlot(appt.time_slot)}) as ${button.textContent}`);
-        button.addEventListener("click", () => onMark(appt, button.textContent, [done, noShow]));
-      }
-      actions.append(done, noShow);
+      // Screen readers hear the resident and time, not just "Completed".
+      const person = `${appt.name} (${formatSlot(appt.time_slot)})`;
+      const choices = ["Completed", "No-show"].map((status) =>
+        button(BUTTON_STYLE[status], status, `Mark ${person} as ${status}`));
+
+      const showChoices = () => actions.replaceChildren(...choices);
+
+      const askToConfirm = (status, origin) => {
+        const question = textEl("p", "w-full text-sm font-bold text-slate-900 md:text-right", `Mark as ${status}?`);
+        const yes = button(status === "Completed" ? BUTTON_STYLE.Completed : BUTTON_STYLE.confirmNoShow,
+          `Yes, ${status}`, `Yes, mark ${person} as ${status}`);
+        const cancel = button(BUTTON_STYLE.cancel, "Cancel", `Cancel, keep ${person} as Booked`);
+        const back = () => { showChoices(); origin.focus(); };
+
+        yes.addEventListener("click", () => onMark(appt, status, [yes, cancel]));
+        cancel.addEventListener("click", back);
+        actions.replaceChildren(question, yes, cancel);
+        actions.onkeydown = (event) => { if (event.key === "Escape") back(); };
+        yes.focus();
+      };
+
+      choices.forEach((choice) => {
+        choice.addEventListener("click", () => askToConfirm(choice.textContent, choice));
+      });
+      showChoices();
     }
 
     // Phones: time on the left, details stacked on the right, buttons full width below.
