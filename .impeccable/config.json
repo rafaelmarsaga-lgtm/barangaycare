@@ -1,0 +1,17 @@
+{
+  "detector": {
+    "ignoreRules": [],
+    "ignoreFiles": [],
+    "ignoreValues": [
+      {
+        "rule": "flat-type-hierarchy",
+        "value": "*",
+        "files": [
+          "frontend/index.html"
+        ],
+        "createdAt": "2026-09-23T19:40:12.770Z",
+        "reason": "Claude: false positive. Browser-measured computed sizes are h1 30px (36px at sm+) vs 16px body = 1.9x; static scan can't resolve Tailwind CDN classes."
+      }
+    ]
+  }
+}
