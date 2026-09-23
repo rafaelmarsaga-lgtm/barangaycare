@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 
 from app import models  # noqa: F401  (registers the tables on Base before create_all)
 from app.database import Base, engine
-from app.routers import appointments, slots
+from app.routers import appointments, slots, summary
 from app.schemas import FALLBACK_MESSAGE, FRIENDLY_MESSAGES
 
 FRONTEND_DIR = Path(__file__).resolve().parent.parent.parent / "frontend"
@@ -40,6 +40,7 @@ def health():
 
 app.include_router(appointments.router)
 app.include_router(slots.router)
+app.include_router(summary.router)
 
 # Mounted last so the /api routes above take priority over static files.
 # Same origin for page and API means no CORS setup is needed.

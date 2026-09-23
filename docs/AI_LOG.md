@@ -29,3 +29,9 @@
 - **AI produced:** `schemas.py` (constrained Name/ContactNumber types, Literal service/slot, `FRIENDLY_MESSAGES`), `routers/appointments.py` (BookingError → 400, IntegrityError → 409), `routers/slots.py`, 422 handler in `main.py`, `open_slots()` shared by slots + summary, 30 new tests.
 - **Changes vs. plan:** `now_ph` is used directly as the injectable "now" dependency, brought forward from Step 4 (the booking endpoint needs it too). No "is it free?" SELECT before insert: the UNIQUE constraint is the single check.
 - **Test result:** RED `30 failed` (405 / NotImplementedError) → GREEN `57 passed`. Live curl: 201 then 409 on the same slot; bad contact → 422 friendly message; Sunday → 400. The first live call returned 405 because the auto-reloader was still restarting, not a code bug.
+
+## Step 4 — Staff API + daily summary (2026-09-24)
+- **Asked:** "Proceed to Step 4": list appointments by date, PATCH status, GET summary.
+- **AI produced:** `GET /api/appointments?date=` (sorted by slot), `PATCH /api/appointments/{id}/status` (404 / 400 "Status is already final."), `routers/summary.py` using `build_summary` + injectable `now_ph`; 16 new tests incl. Sunday = 0 open and today-after-2 PM.
+- **Debugging:** live curl gave 404/405 while tests passed. Server logs showed "StatReload detected changes … Reloading..." with no "Started server process", so the old process was still serving. Root cause: the uvicorn reload hung, not the code. Fix: restarted the server; all endpoints then correct.
+- **Test result:** RED `16 failed` → GREEN `73 passed`. Live: list 200, Completed 200, re-mark 400, id 999 → 404, summary Mon `total 2, open 5`, Sunday `open 0`.
