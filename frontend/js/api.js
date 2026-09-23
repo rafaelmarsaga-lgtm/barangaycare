@@ -4,30 +4,22 @@
 const OFFLINE_MESSAGE = "Cannot reach the server. Please check your connection and try again.";
 const GENERIC_MESSAGE = "Something went wrong. Please try again.";
 
-export async function getSlots(date) {
+/** One place for fetch + error handling. Resolves with the JSON body, or throws
+ *  an Error whose message is safe to show and whose `status` is the HTTP code. */
+async function request(method, path, body) {
+  const options = { method };
+  if (body !== undefined) {
+    options.headers = { "Content-Type": "application/json" };
+    options.body = JSON.stringify(body);
+  }
+
   let response;
   try {
-    response = await fetch(`/api/slots?date=${encodeURIComponent(date)}`);
+    response = await fetch(path, options);
   } catch {
-    throw new Error(OFFLINE_MESSAGE);
+    throw new Error(OFFLINE_MESSAGE); // network down or server stopped
   }
   // A crash (500) may return plain text, not JSON; don't let that leak to the UI.
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || GENERIC_MESSAGE);
-  return data;
-}
-
-export async function createAppointment(appointment) {
-  let response;
-  try {
-    response = await fetch("/api/appointments", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(appointment),
-    });
-  } catch {
-    throw new Error(OFFLINE_MESSAGE);
-  }
   const data = await response.json().catch(() => ({}));
   if (!response.ok) {
     const error = new Error(data.detail || GENERIC_MESSAGE);
@@ -37,42 +29,11 @@ export async function createAppointment(appointment) {
   return data;
 }
 
-export async function getAppointments(date) {
-  let response;
-  try {
-    response = await fetch(`/api/appointments?date=${encodeURIComponent(date)}`);
-  } catch {
-    throw new Error(OFFLINE_MESSAGE);
-  }
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || GENERIC_MESSAGE);
-  return data;
-}
+const byDate = (path, date) => `${path}?date=${encodeURIComponent(date)}`;
 
-export async function getSummary(date) {
-  let response;
-  try {
-    response = await fetch(`/api/summary?date=${encodeURIComponent(date)}`);
-  } catch {
-    throw new Error(OFFLINE_MESSAGE);
-  }
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || GENERIC_MESSAGE);
-  return data;
-}
-
-export async function updateStatus(id, status) {
-  let response;
-  try {
-    response = await fetch(`/api/appointments/${encodeURIComponent(id)}/status`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status }),
-    });
-  } catch {
-    throw new Error(OFFLINE_MESSAGE);
-  }
-  const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.detail || GENERIC_MESSAGE);
-  return data;
-}
+export const getSlots = (date) => request("GET", byDate("/api/slots", date));
+export const getAppointments = (date) => request("GET", byDate("/api/appointments", date));
+export const getSummary = (date) => request("GET", byDate("/api/summary", date));
+export const createAppointment = (appointment) => request("POST", "/api/appointments", appointment);
+export const updateStatus = (id, status) =>
+  request("PATCH", `/api/appointments/${encodeURIComponent(id)}/status`, { status });

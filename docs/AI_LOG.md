@@ -59,3 +59,28 @@
 - **Bug caught before running:** reused the name `who` in the same block (would be a SyntaxError that stops all JS); renamed to `person`.
 - **Browser checks:** No-show → confirm shown, server still Booked; Esc → buttons back, focus restored, server unchanged; Cancel → same; Completed → Yes → saved (server Completed), buttons gone; desktop confirm fits the 13rem column; 375px: no horizontal scroll on booking, slots, staff list, or confirm.
 - **Test result:** seed prints `Seeded 9 appointments.` twice with 9 rows total (re-runnable); backend `73 passed`.
+
+## Step 7.5 — Refactor: one request() helper in api.js (2026-09-24)
+- **Asked:** "Proceed to Step 7.5": suite before → one refactor with no behavior change → suite after; show before/after code and both outputs.
+- **Target:** `frontend/js/api.js`. All 5 functions repeated the same ~10 lines (fetch, offline catch, safe JSON parse, error with `detail`).
+- **Before** (repeated 5×, shown for `getSlots`):
+  ```js
+  export async function getSlots(date) {
+    let response;
+    try { response = await fetch(`/api/slots?date=${encodeURIComponent(date)}`); }
+    catch { throw new Error(OFFLINE_MESSAGE); }
+    const data = await response.json().catch(() => ({}));
+    if (!response.ok) throw new Error(data.detail || GENERIC_MESSAGE);
+    return data;
+  }
+  ```
+- **After:** one `request(method, path, body)` helper holds that logic once; each endpoint is one line:
+  ```js
+  export const getSlots = (date) => request("GET", byDate("/api/slots", date));
+  export const createAppointment = (appointment) => request("POST", "/api/appointments", appointment);
+  export const updateStatus = (id, status) =>
+    request("PATCH", `/api/appointments/${encodeURIComponent(id)}/status`, { status });
+  ```
+  72 → 34 non-empty lines; `fetch()` call sites 5 → 1 (`+17 / −56`). A future fix (e.g. a timeout) now goes in one place.
+- **Why pytest alone wasn't enough:** pytest only covers the backend, so I also ran a browser harness that called all 5 api.js functions (14 calls, success + every error path) against a freshly seeded DB, before and after.
+- **Test result:** pytest BEFORE `73 passed` → AFTER `73 passed`. Harness: 14/14 identical results and messages. One observable difference, reviewed: errors from the other 4 functions now also carry `error.status` (previously only `createAppointment`). The only reader is `app.js:171` (booking submit, `=== 409`), which was unchanged, so there's no user-visible change. UI re-check: booking ✓, 409 reloads the slot ✓, status change with confirm ✓, no JS errors.
